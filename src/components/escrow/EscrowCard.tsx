@@ -1,12 +1,27 @@
 'use client';
 
+import type { ReactNode } from 'react';
 import type { EscrowContract } from '@/lib/api';
+import { MilestoneTimeline } from '@/components/milestones/MilestoneTimeline';
 
 const short = (a: string) => (a.length > 14 ? `${a.slice(0, 6)}...${a.slice(-4)}` : a);
 
 export interface EscrowCardProps {
   contract: EscrowContract;
   busy?: boolean;
+  /** An optimistic update is in flight: the card shows the expected result. */
+  optimistic?: boolean;
+  /** Card-local error for the last failed action, with an optional Retry. */
+  error?: { message: string; detail?: string } | null;
+  onRetry?: () => void;
+  /** Extra controls rendered next to the status badge (e.g. a watch toggle). */
+  headerActions?: ReactNode;
+  /** Extra controls rendered after the built-in action buttons. */
+  extraActions?: ReactNode;
+  /** Replaces the built-in rating buttons / "Rated" note on completed escrows when provided. */
+  ratingSlot?: ReactNode;
+  /** Replaces the built-in "Resolve 50/50" button on disputed escrows when provided. */
+  resolveSlot?: ReactNode;
   onFund?: (contract: EscrowContract, amount: number) => void;
   onReleaseNext?: (contract: EscrowContract, milestoneIndex: number) => void;
   onDispute?: (contract: EscrowContract, trigger: HTMLButtonElement) => void;
@@ -18,6 +33,13 @@ export interface EscrowCardProps {
 export function EscrowCard({
   contract,
   busy = false,
+  optimistic = false,
+  error = null,
+  onRetry,
+  headerActions,
+  extraActions,
+  ratingSlot,
+  resolveSlot,
   onFund,
   onReleaseNext,
   onDispute,
@@ -34,12 +56,21 @@ export function EscrowCard({
   const headingId = `escrow-heading-${contract.id}`;
 
   return (
-    <article className="card" aria-busy={busy}>
+    <article
+      className="card"
+      id={`escrow-${contract.id}`}
+      tabIndex={-1}
+      aria-busy={busy}
+      style={optimistic ? { opacity: 0.8 } : undefined}
+    >
       <div className="row" style={{ justifyContent: 'space-between' }}>
         <h3 id={headingId} style={{ margin: 0 }}>
           #{contract.id} {contract.title}
         </h3>
-        <span className={`badge badge-${contract.status}`}>{contract.status}</span>
+        <div className="row" style={{ gap: 8 }}>
+          {headerActions}
+          <span className={`badge badge-${contract.status}`}>{contract.status}</span>
+        </div>
       </div>
 
       <p className="small muted" style={{ margin: '6px 0 12px' }}>
@@ -66,20 +97,28 @@ export function EscrowCard({
         {contract.fundedAmount - contract.releasedAmount} {contract.token}
       </p>
 
-      <ul className="milestones" aria-label={`Milestones for escrow #${contract.id}`}>
-        {contract.milestones.map((m) => (
-          <li key={m.index}>
-            <span className="truncate">
-              <span className="sr-only">{m.released ? 'Completed milestone: ' : 'Pending milestone: '}</span>
-              <span aria-hidden="true">{m.released ? '[x]' : '[ ]'} </span>
-              {m.title}
-            </span>
-            <span className="mono">
-              {m.amount} {contract.token}
-            </span>
-          </li>
-        ))}
-      </ul>
+      <MilestoneTimeline
+        contract={contract}
+        busy={busy}
+        showSummary={false}
+        onRelease={(index) => onReleaseNext?.(contract, index)}
+      />
+
+      {error && (
+        <div className="alert alert-error row" role="alert" title={error.detail} style={{ marginTop: 10, justifyContent: 'space-between' }}>
+          <span>{error.message}</span>
+          {onRetry && (
+            <button
+              type="button"
+              className="btn btn-secondary btn-sm"
+              onClick={onRetry}
+              aria-label={`Retry failed action for escrow #${contract.id}`}
+            >
+              Retry
+            </button>
+          )}
+        </div>
+      )}
 
       <div className="row">
         {active && contract.fundedAmount < contract.totalAmount && (
@@ -130,7 +169,7 @@ export function EscrowCard({
             </button>
           </>
         )}
-        {contract.status === 'Disputed' && (
+        {contract.status === 'Disputed' && resolveSlot === undefined && (
           <button
             type="button"
             className="btn btn-primary btn-sm"
@@ -142,7 +181,8 @@ export function EscrowCard({
             Resolve 50/50
           </button>
         )}
-        {contract.status === 'Completed' && !contract.reputationIssued && (
+        {contract.status === 'Completed' && ratingSlot !== undefined && ratingSlot}
+        {contract.status === 'Completed' && ratingSlot === undefined && !contract.reputationIssued && (
           <>
             <span className="small muted">Rate freelancer:</span>
             {[1, 2, 3, 4, 5].map((r) => (
@@ -160,10 +200,12 @@ export function EscrowCard({
             ))}
           </>
         )}
-        {contract.status === 'Completed' && contract.reputationIssued && (
+        {contract.status === 'Completed' && ratingSlot === undefined && contract.reputationIssued && (
           <span className="small muted">Rated. Thanks!</span>
         )}
+        {extraActions}
       </div>
+      {contract.status === 'Disputed' && resolveSlot}
     </article>
   );
 }

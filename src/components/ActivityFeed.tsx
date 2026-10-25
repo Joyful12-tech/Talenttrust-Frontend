@@ -158,8 +158,8 @@ export function ActivityFeed({ pollIntervalMs = ACTIVITY_POLL_MS }: { pollInterv
           <ul className="activity-skeleton" aria-hidden="true">
             {Array.from({ length: 4 }, (_, i) => (
               <li key={i}>
-                <span className="skeleton-line" />
-                <span className="skeleton-line short" />
+                <span className="activity-skeleton-line" />
+                <span className="activity-skeleton-line short" />
               </li>
             ))}
           </ul>

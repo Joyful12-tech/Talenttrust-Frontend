@@ -158,7 +158,8 @@ curl -X POST ${site.apiUrl}/api/v1/contracts/1/milestones/0/release`}</CodeBlock
               <code>resolve_dispute</code>, <code>cancel_contract</code>, <code>issue_reputation</code>,{' '}
               <code>get_contract</code> and <code>get_reputation</code>. Deposits and releases perform real token
               transfers through the Stellar Asset Contract interface, and an admin circuit breaker can pause all
-              mutations.
+              mutations. Dispute resolution is an admin-only arbiter decision enforced by the contract; any frontend
+              check is only a user-experience measure and does not replace on-chain authorization.
             </p>
             <CodeBlock>{`stellar contract invoke --id ${site.contractId} \\
   --source <your-key> --network ${site.network} -- get_admin`}</CodeBlock>
